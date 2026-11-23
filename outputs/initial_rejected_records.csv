@@ -1,0 +1,4 @@
+return_id,taxpayer_id,tax_year,income,deduction,reasons
+R01,F0,2022,100,20,duplicate return_id
+R01,F0,2022,100,20,duplicate return_id
+R02,F1,2022,,33,missing required income

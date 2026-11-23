@@ -1,0 +1,34 @@
+{
+  "initial": {
+    "table": "training.to6_challenge3_inputs.returns_initial",
+    "rows": 13,
+    "distinct_return_ids": 12,
+    "missing_required": {
+      "return_id": 0,
+      "tax_year": 0,
+      "income": 1,
+      "deduction": 0
+    },
+    "duplicate_return_ids": 1,
+    "negative_amounts": 0,
+    "zero_income_info_only": 2,
+    "affected_rows": 3,
+    "passed": false
+  },
+  "corrected": {
+    "table": "training.to6_challenge3_inputs.returns_corrected",
+    "rows": 12,
+    "distinct_return_ids": 12,
+    "missing_required": {
+      "return_id": 0,
+      "tax_year": 0,
+      "income": 0,
+      "deduction": 0
+    },
+    "duplicate_return_ids": 0,
+    "negative_amounts": 0,
+    "zero_income_info_only": 2,
+    "affected_rows": 0,
+    "passed": true
+  }
+}

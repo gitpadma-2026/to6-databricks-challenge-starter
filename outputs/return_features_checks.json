@@ -1,0 +1,22 @@
+{
+  "table": "training.to6_c3_8e4b3cdc76d4.return_features",
+  "columns": [
+    "return_id",
+    "tax_year",
+    "deduction_to_income"
+  ],
+  "rows": 12,
+  "distinct_return_ids": 12,
+  "nonzero_check": {
+    "return_id": "R01",
+    "deduction": 20,
+    "income": 100,
+    "expected": 0.2,
+    "saved": 0.2
+  },
+  "zero_income_null_ratio": {
+    "R03": null,
+    "R09": null
+  },
+  "all_rows_match_source": true
+}

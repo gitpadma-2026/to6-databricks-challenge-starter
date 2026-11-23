@@ -1,0 +1,23 @@
+{
+  "table": "training.to6_challenge3_inputs.returns_corrected",
+  "rows": 12,
+  "distinct_return_ids": 12,
+  "duplicate_return_ids": 0,
+  "rules": [
+    "return_id unique",
+    "income not null",
+    "income not negative (0 is acceptable)"
+  ],
+  "negative_or_null_income": 0,
+  "flagged_income_ids": [],
+  "zero_income_ids_acceptable": [
+    "R03",
+    "R09"
+  ],
+  "income_breakdown": {
+    "null_income": 0,
+    "negative_income": 0,
+    "zero_income": 2
+  },
+  "passed": true
+}

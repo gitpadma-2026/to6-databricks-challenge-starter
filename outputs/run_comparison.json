@@ -1,0 +1,23 @@
+{
+  "run1": "run_2026-11-23T22-21-15Z.csv",
+  "run2": "run_2026-11-23T22-23-28Z.csv",
+  "rows_run1": 24,
+  "rows_run2": 24,
+  "rows_per_table_run1": {
+    "features_test": 4,
+    "features_train": 4,
+    "features_validation": 4,
+    "return_features": 12
+  },
+  "rows_per_table_run2": {
+    "features_test": 4,
+    "features_train": 4,
+    "features_validation": 4,
+    "return_features": 12
+  },
+  "ids_only_in_one_run": 0,
+  "tax_year_differences": 0,
+  "ratio_differences": 0,
+  "duplicate_rows": 0,
+  "identical": true
+}

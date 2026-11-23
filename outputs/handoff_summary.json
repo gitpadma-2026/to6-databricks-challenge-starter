@@ -1,0 +1,42 @@
+{
+  "inputs": {
+    "accepted_batch": "training.to6_challenge3_inputs.returns_corrected",
+    "rejected_batch": "training.to6_challenge3_inputs.returns_initial",
+    "lineage_view": "training.to6_challenge3_inputs.source_lineage",
+    "upstream_source": "training.to6_challenge3_inputs.parsed_source"
+  },
+  "outputs": {
+    "feature_table": "training.to6_c3_8e4b3cdc76d4.return_features",
+    "year_splits": {
+      "2022": "training.to6_c3_8e4b3cdc76d4.features_train",
+      "2023": "training.to6_c3_8e4b3cdc76d4.features_validation",
+      "2024": "training.to6_c3_8e4b3cdc76d4.features_test"
+    },
+    "evidence_files": [
+      "outputs/return_features.csv",
+      "outputs/features_train.csv",
+      "outputs/features_validation.csv",
+      "outputs/features_test.csv",
+      "outputs/return_features_checks.json",
+      "outputs/corrected_cell6_validation.json"
+    ]
+  },
+  "ratio_definition": "deduction_to_income = deduction / income (double); null when income = 0 (row kept)",
+  "checks_performed": [
+    "return_id uniqueness on both batches",
+    "required fields (return_id, tax_year, income, deduction) non-null",
+    "no negative amounts",
+    "zero income valid, produces null ratio",
+    "feature table columns = [return_id, tax_year, deduction_to_income] (need-to-know)",
+    "all 12 source rows present in feature table with correct values",
+    "year-split tables partition all features by tax_year with no overlap or loss",
+    "idempotency: two consecutive overwrites produce identical tables",
+    "value-level join: every split row matches the source feature row"
+  ],
+  "not_verified": [
+    "Catalog UI lineage (source_lineage is a supplied view, not a Catalog lineage check)",
+    "Upstream parsed_source content (out of scope; we trust the supplier's lineage view)",
+    "Schema evolution or future deliveries (only the two supplied batches were checked)",
+    "Access controls on the output tables (not part of this challenge)"
+  ]
+}
