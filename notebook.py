@@ -79,6 +79,96 @@ display(spark.table(CORRECTED_TABLE).orderBy("return_id").limit(3))
 
 # COMMAND ----------
 
+# DBTITLE 1,Table discovery via Unity Catalog metadata
+# Find candidate tables for this task from Unity Catalog metadata (information_schema), not by guessing names
+from pyspark.sql import functions as F
+
+CATALOG = "training"
+NEEDED_COLS = {"return_id", "taxpayer_id", "tax_year", "income", "deduction"}
+
+# 1. Candidate relations: anything that looks like a return delivery, source or lineage map
+candidates = spark.sql(f"""
+    SELECT table_schema, table_name, table_type, table_owner, comment, created, last_altered
+    FROM {CATALOG}.information_schema.tables
+    WHERE (table_name ILIKE '%returns%' OR table_name ILIKE '%parsed%' OR table_name ILIKE '%lineage%')
+      AND table_name NOT ILIKE '%features%'          -- outputs, not inputs
+    ORDER BY table_schema, table_name""")
+display(candidates)
+
+# 2. Columns and comments (scoped to the candidate schemas) and fit to the required fields
+cand_schemas = [r.table_schema for r in candidates.select("table_schema").distinct().collect()]
+schema_list = ", ".join(f"'{s}'" for s in cand_schemas)
+cols = spark.sql(f"""
+    SELECT table_schema, table_name, column_name, data_type, comment
+    FROM {CATALOG}.information_schema.columns
+    WHERE table_schema IN ({schema_list})""")
+fit = (cols.groupBy("table_schema", "table_name")
+           .agg(F.collect_set("column_name").alias("columns"),
+                F.count("comment").alias("commented_columns"))
+           .withColumn("has_all_required",
+                       F.size(F.array_intersect("columns", F.array(*[F.lit(c) for c in sorted(NEEDED_COLS)]))) == len(NEEDED_COLS)))
+display(fit.orderBy("table_schema", "table_name"))
+
+# 3. Certification status: governed tags at catalog, schema, table and column level
+for level, view, name_col in [("schema", "schema_tags", "schema_name"),
+                              ("table", "table_tags", "schema_name"),
+                              ("column", "column_tags", "schema_name")]:
+    tags = spark.sql(f"SELECT * FROM {CATALOG}.information_schema.{view} WHERE {name_col} IN ({schema_list})")
+    print(f"{level} tags on candidate schemas: {tags.count()}")
+    if tags.count():
+        display(tags)
+
+# 4. Recorded use: system lineage if permitted, otherwise metadata that records use
+try:
+    usage = spark.sql(f"""
+        SELECT source_table_schema, source_table_name, count(*) AS events,
+               count(DISTINCT created_by) AS users, max(event_time) AS last_used
+        FROM system.access.table_lineage
+        WHERE source_table_catalog = '{CATALOG}' AND source_table_schema IN ({schema_list})
+        GROUP BY ALL""")
+    display(usage)
+except Exception as e:
+    print("system.access.table_lineage not available:", str(e).splitlines()[0][:160])
+
+# Fallback evidence of use: the supplied lineage map, and downstream output tables whose comments cite an input
+display(spark.table(f"{CATALOG}.to6_challenge3_inputs.source_lineage"))
+display(spark.sql(f"""
+    SELECT table_schema, table_name, comment
+    FROM {CATALOG}.information_schema.tables
+    WHERE table_name = 'return_features' AND comment ILIKE '%returns_corrected%'"""))
+
+# COMMAND ----------
+
+# DBTITLE 1,Table selection and rationale
+# MAGIC %md
+# MAGIC ### Table selection from Unity Catalog metadata
+# MAGIC Method: queried `training.information_schema.tables` for return, parsed and lineage relations. Then read `information_schema.columns` (scoped to the candidate schemas) and the schema, table and column tags. Last, tried `system.access.table_lineage` for recorded use.
+# MAGIC
+# MAGIC **Candidates with all required columns** (`return_id`, `taxpayer_id`, `tax_year`, `income`, `deduction`):
+# MAGIC
+# MAGIC | Schema | Tables | Table comment | Certification tags | Recorded use |
+# MAGIC | --- | --- | --- | --- | --- |
+# MAGIC | `to6_challenge3_inputs` | `returns_initial`, `returns_corrected`, `parsed_source`, plus the `source_lineage` view | Delivery comments say they come from `parsed_source`; the view says "Supplied source map for Challenge 3" | none | `source_lineage` maps both deliveries; 2 other trainees' `return_features` comments cite `training.to6_challenge3_inputs.returns_corrected` |
+# MAGIC | `to6_trial_inputs_20261115` | `returns_initial`, `returns_corrected`, `parsed_source` | Similar delivery comments, no Challenge 3 reference | none | no lineage view and no downstream comments citing it; `parsed_source` last altered 2026-11-23, so it is still changing |
+# MAGIC
+# MAGIC **Rejected:** tables in `default` (for example `returns_raw`, `v4_parsed_returns`) use `case_id` and other XML-derived fields. None has `return_id` or `tax_year`/`income`/`deduction` in this shape.
+# MAGIC
+# MAGIC **Decision:** use `training.to6_challenge3_inputs`:
+# MAGIC * `returns_initial` is assessed and rejected.
+# MAGIC * `returns_corrected` is assessed, accepted and is the only feature source.
+# MAGIC * `source_lineage` is the lineage reference.
+# MAGIC * `parsed_source` is recorded as the upstream table but not read directly, because the task is to assess the deliveries.
+# MAGIC
+# MAGIC Why: it is the only schema whose own metadata ties it to Challenge 3 (the lineage view comment). It is also the only one with recorded downstream use (other `return_features` comments). The trial schema has matching columns but no such record and looks like a test copy.
+# MAGIC
+# MAGIC **Columns used:** `return_id` (key), `tax_year` (split year), `income` and `deduction` (ratio inputs). `taxpayer_id` is read only for profiling and is excluded from outputs (need-to-know).
+# MAGIC
+# MAGIC **Not verifiable:**
+# MAGIC * No candidate has certification tags, and no column has a Catalog comment. Column meaning comes from the table comments and CHALLENGE.md.
+# MAGIC * `system.access.table_lineage` is not readable (INSUFFICIENT_PERMISSIONS on `system.access`). Recorded use therefore relies on the supplied view and downstream table comments, not system lineage.
+
+# COMMAND ----------
+
 # DBTITLE 1,Explore initial table
 from pyspark.sql import functions as F
 
